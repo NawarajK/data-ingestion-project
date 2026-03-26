@@ -50,9 +50,10 @@ def add_customer():
         cursor = conn.cursor()
 
         # insert data into the table
-        cursor.execute(""
-                       "INSERT INTO customers (name, age, country) VALUES (?, ?, ?), (name, age, country)"
-                       )
+        cursor.execute(
+            "INSERT INTO customers (name, age, country) VALUES (?, ?, ?)", (
+                name, age, country)
+        )
         conn.commit()
         conn.close()
         print("customer added successfully!")
@@ -116,7 +117,7 @@ def update_customer():
     Updates an existing customer's details."""
     try:
         # Get id and new values
-        customer_id = input("Enter customer id to update: ")
+        customer_id = int(input("Enter customer id to update: "))
         new_name = input("Enter new name: ")
         new_age = int(input("Enter new age: "))
         new_country = input("Enter new country: ")
@@ -125,13 +126,60 @@ def update_customer():
         cursor = conn.cursor()
         # update query
         cursor.execute(
-            "UPDATE customers SET name=?, age=?, country=?", (
-                new_name, new_age, new_country)
+            "UPDATE customers SET name=?, age=?, country=?  WHERE id=?", (
+                new_name, new_age, new_country, customer_id)
         )
         conn.commit()
         conn.close()
     except ValueError:
         print("Invalid input, age and id must be numbers")
+
+# Generate report and export (Pandas introduction)
+
+
+def generate_report():
+    """
+    Day 4 features:
+    -Loads all customers into pandas
+    -Shows basic statistics and grouping
+    -Export clean data to CSV (important for power BI, ML pipelines, shairng)
+    """
+    import pandas as pd  # we import pandas only here so that the code above it stays independent
+
+    # 1. Connect and load entire table into a pandas Dataframe
+    conn = connect_db()
+    df = pd.read_sql_query("SELECT * FROM customers", conn)
+    conn.close()
+    if df.empty:
+        print("No customers in database yet. ")
+        return
+
+    # 2. Basic cleaning example (very common in real pipelines)
+    # Remove rows where age is missing or invalid (NaN or negative)
+    df = df.dropna(subset=['age'])  # drop rows missing age
+    df = df[df['age'] > 0]  # remove impossible ages
+
+    # 3. show nice summary statistics
+
+    print("\n" + "=" * 50)
+    print("         PANDAS DATA REPORT AND EXPORT")
+    print("=" * 50)
+    print(f"Total customers after cleaning : {len(df)}")
+    print(f"Average age                    : {df['age'].mean():.1f}")
+    print(f"youngest customer              : {df['age'].min()} years")
+    print(f"Oldest customer                : {df['age'].max()} years")
+    print((f"Number of different countries : {df['country'].nunique()}"))
+
+    # 4. Group by country - very common stakeholder request
+    print("\n Customers per country: ")
+    print(df['country'].value_counts().to_string())
+
+    # 5. Export cleaned data- this file can later be sent to azure blo, power bi, ml model, etc
+    export_path = "customers_clean_export.csv"
+    df.to_csv(export_path, index=False)
+    print(f"\n Cleaned data exported to: {export_path}")
+    print(("   -- You can open this file in excel, power bi, or use it for machine learning "))
+
 
 # menu system main loop
 
@@ -148,7 +196,8 @@ def menu():
         print("3. Delete Customer")
         print("4. Search Customer")
         print("5. Update Customer")
-        print("6. Exit")
+        print("6. Generate report and export (pandas)")
+        print("7. Exit")
 
         # take user input
         choice = input("select option: ")
@@ -164,13 +213,15 @@ def menu():
             search_customer()
         elif choice == "5":
             update_customer()
-
         elif choice == "6":
+            generate_report()
+
+        elif choice == "7":
             print("exiting...........")
             break
         else:
             print("Invalid choice.")
 
 
-# program entry point, this starts the program4
+# program entry point, this starts the program
 menu()
